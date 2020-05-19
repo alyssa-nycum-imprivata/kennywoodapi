@@ -25,6 +25,30 @@ class ParkAreaSerializer(serializers.HyperlinkedModelSerializer):
 class ParkAreas(ViewSet):
     """Park Areas for Kennywood Amusement Park"""
 
+    def list(self, request):
+        """Handle GET requests to park areas resource
+
+        Returns:
+            Response -- JSON serialized list of park areas
+        """
+        areas = ParkArea.objects.all()
+        serializer = ParkAreaSerializer(
+            areas, many=True, context={'request': request})
+        return Response(serializer.data)
+    
+    def retrieve(self, request, pk=None):
+        """Handle GET requests for single park area
+
+        Returns:
+            Response -- JSON serialized park area instance
+        """
+        try:
+            area = ParkArea.objects.get(pk=pk)
+            serializer = ParkAreaSerializer(area, context={'request': request})
+            return Response(serializer.data)
+        except Exception as ex:
+            return HttpResponseServerError(ex)
+
     def create(self, request):
         """Handle POST operations
 
@@ -39,19 +63,6 @@ class ParkAreas(ViewSet):
         serializer = ParkAreaSerializer(newarea, context={'request': request})
 
         return Response(serializer.data)
-
-    def retrieve(self, request, pk=None):
-        """Handle GET requests for single park area
-
-        Returns:
-            Response -- JSON serialized park area instance
-        """
-        try:
-            area = ParkArea.objects.get(pk=pk)
-            serializer = ParkAreaSerializer(area, context={'request': request})
-            return Response(serializer.data)
-        except Exception as ex:
-            return HttpResponseServerError(ex)
 
     def update(self, request, pk=None):
         """Handle PUT requests for a park area
@@ -83,14 +94,3 @@ class ParkAreas(ViewSet):
 
         except Exception as ex:
             return Response({'message': ex.args[0]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    def list(self, request):
-        """Handle GET requests to park areas resource
-
-        Returns:
-            Response -- JSON serialized list of park areas
-        """
-        areas = ParkArea.objects.all()
-        serializer = ParkAreaSerializer(
-            areas, many=True, context={'request': request})
-        return Response(serializer.data)
