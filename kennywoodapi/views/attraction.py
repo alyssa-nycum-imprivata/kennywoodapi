@@ -4,13 +4,13 @@ from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response
 from rest_framework import serializers
 from rest_framework import status
-from kennywoodapi.models import Attraction
+from kennywoodapi.models import Attraction, ParkArea
 
 class AttractionSerializer(serializers.HyperlinkedModelSerializer):
     """JSON serializer for attractions
 
     Arguments:
-        serializers
+        serializers.HyperlinkedModelSerializer
     """
     class Meta:
         model = Attraction
@@ -18,7 +18,8 @@ class AttractionSerializer(serializers.HyperlinkedModelSerializer):
             view_name='attraction',
             lookup_field='id'
         )
-        fields = ('id', 'url', 'name', 'area_id')
+        fields = ('id', 'url', 'name', 'area')
+        depth = 1
 
 class Attractions(ViewSet):
     """Attractions for Kennywood Amusement Park"""
@@ -30,6 +31,12 @@ class Attractions(ViewSet):
             Response -- JSON serialized list of attractions
         """
         attractions = Attraction.objects.all()
+
+        # If area is provided as a query parameter, then filter list of attractions by area id
+        area = self.request.query_params.get('area', None)
+        if area is not None:
+            attractions = attractions.filter(area__id=area)
+
         serializer = AttractionSerializer(
             attractions, many=True, context={'request': request}
         )
@@ -54,12 +61,15 @@ class Attractions(ViewSet):
         Returns:
             Response -- JSON serialized Attraction instance
         """
-        newattraction = Attraction()
-        newattraction.name = request.data["name"]
-        newattraction.area_id = request.data["area_id"]
-        newattraction.save()
+        new_attraction = Attraction()
+        new_attraction.name = request.data["name"]
 
-        serialized = AttractionSerializer(newattraction, context={'request': request})
+        area = ParkArea.objects.get(pk=request.data["area_id"])
+        new_attraction.area = area
+
+        new_attraction.save()
+
+        serialized = AttractionSerializer(new_attraction, context={'request': request})
 
         return Response(serialized.data)
 
@@ -71,7 +81,10 @@ class Attractions(ViewSet):
         """
         attraction = Attraction.objects.get(pk=pk)
         attraction.name = request.data['name']
-        attraction.area_id = request.data['area_id']
+        
+        area = ParkArea.objects.get(pk=request.data["area_id"])
+        attraction.area = area
+
         attraction.save()
 
         return Response({}, status=status.HTTP_204_NO_CONTENT)
@@ -87,8 +100,10 @@ class Attractions(ViewSet):
             attraction.delete()
 
             return Response({}, status=status.HTTP_204_NO_CONTENT)
+
         except Attraction.DoesNotExist as ex:
             return Response({'message': ex.args[0]}, status=status.HTTP_404_NOT_FOUND)
+            
         except Exception as ex:
             return Response({'message': ex.args[0]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

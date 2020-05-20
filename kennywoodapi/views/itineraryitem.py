@@ -4,10 +4,10 @@ from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response
 from rest_framework import serializers
 from rest_framework import status
-from kennywoodapi.models import Itinerary
+from kennywoodapi.models import Itinerary, Customer, Attraction
 
 
-class ItinerarySerializer(serializers.HyperlinkedModelSerializer):
+class ItineraryItemSerializer(serializers.HyperlinkedModelSerializer):
     """JSON serializer for itineraries
 
     Arguments:
@@ -19,9 +19,10 @@ class ItinerarySerializer(serializers.HyperlinkedModelSerializer):
             view_name='itinerary',
             lookup_field='id'
         )
-        fields = ('id', 'url', 'starttime', 'attraction_id', 'customer_id')
+        fields = ('id', 'url', 'starttime', 'attraction')
+        depth = 1
 
-class Itineraries(ViewSet):
+class ItineraryItems(ViewSet):
     """Itineraries for Kennywood Amusement Park"""
 
     def list(self, request):
@@ -30,9 +31,12 @@ class Itineraries(ViewSet):
         Returns:
             Response -- JSON serialized list of itineraries
         """
-        itineraries = Itinerary.objects.all()
-        serializer = ItinerarySerializer(
-            itineraries, many=True, context={'request': request}
+        customer = Customer.objects.get(user=request.auth.user)
+
+        itinerary_items = Itinerary.objects.filter(customer=customer)
+
+        serializer = ItineraryItemSerializer(
+            itinerary_items, many=True, context={'request': request}
         )
         return Response(serializer.data)
 
@@ -43,8 +47,8 @@ class Itineraries(ViewSet):
             Response -- JSON serialized itinerary instance
         """
         try:
-            itinerary = Itinerary.objects.get(pk=pk)
-            serializer = ItinerarySerializer(itinerary, context={'request': request})
+            itinerary_item = Itinerary.objects.get(pk=pk)
+            serializer = ItineraryItemSerializer(itinerary_item, context={'request': request})
             return Response(serializer.data)
         except Exception as ex:
             return HttpResponseServerError(ex)
@@ -55,13 +59,17 @@ class Itineraries(ViewSet):
         Returns:
             Response -- JSON serialized Itinerary instance
         """
-        newitinerary = Itinerary()
-        newitinerary.starttime = request.data['starttime']
-        newitinerary.attraction_id = request.data['attraction_id']
-        newitinerary.customer_id = request.data['customer_id']
-        newitinerary.save()
+        attraction = Attraction.objects.get(pk=request.data["ride_id"])
+        customer = Customer.objects.get(user=request.auth.user)
 
-        serializer = ItinerarySerializer(newitinerary, context={'request': request})
+        new_itinerary_item = Itinerary()
+        new_itinerary_item.starttime = request.data['starttime']
+        new_itinerary_item.customer = customer
+        new_itinerary_item.attraction = attraction
+        
+        new_itinerary_item.save()
+
+        serializer = ItineraryItemSerializer(new_itinerary_item, context={'request': request})
 
         return Response(serializer.data)
 
@@ -71,11 +79,13 @@ class Itineraries(ViewSet):
         Returns:
             Response -- Empty body with 204 status code
         """
-        itinerary = Itinerary.objects.get(pk=pk)
-        itinerary.starttime = request.data['starttime']
-        itinerary.attraction_id = request.data['attraction_id']
-        itinerary.customer_id = request.data['customer_id']
-        itinerary.save()
+        itinerary_item = Itinerary.objects.get(pk=pk)
+        itinerary_item.starttime = request.data['starttime']
+
+        attraction = Attraction.objects.get(pk=request.data["attraction_id"])
+        itinerary_item.attraction = attraction
+        
+        itinerary_item.save()
 
         return Response({}, status=status.HTTP_204_NO_CONTENT)
 
@@ -86,8 +96,8 @@ class Itineraries(ViewSet):
             Response -- 200, 404, or 500 status code
         """
         try:
-            itinerary = Itinerary.objects.get(pk=pk)
-            itinerary.delete()
+            itinerary_item = Itinerary.objects.get(pk=pk)
+            itinerary_item.delete()
 
             return Response({}, status=status.HTTP_204_NO_CONTENT)
         
