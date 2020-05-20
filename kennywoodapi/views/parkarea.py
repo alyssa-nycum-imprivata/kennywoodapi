@@ -4,7 +4,7 @@ from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response
 from rest_framework import serializers
 from rest_framework import status
-from kennywoodapi.models import ParkArea
+from kennywoodapi.models import ParkArea, Attraction
 
 
 class ParkAreaSerializer(serializers.HyperlinkedModelSerializer):
@@ -19,7 +19,8 @@ class ParkAreaSerializer(serializers.HyperlinkedModelSerializer):
             view_name='parkarea',
             lookup_field='id'
         )
-        fields = ('id', 'url', 'name', 'theme')
+        fields = ('id', 'url', 'name', 'theme', 'attractions')
+        depth = 1
 
 
 class ParkAreas(ViewSet):
@@ -55,12 +56,12 @@ class ParkAreas(ViewSet):
         Returns:
             Response -- JSON serialized ParkArea instance
         """
-        newarea = ParkArea()
-        newarea.name = request.data["name"]
-        newarea.theme = request.data["theme"]
-        newarea.save()
+        new_area = ParkArea()
+        new_area.name = request.data["name"]
+        new_area.theme = request.data["theme"]
+        new_area.save()
 
-        serializer = ParkAreaSerializer(newarea, context={'request': request})
+        serializer = ParkAreaSerializer(new_area, context={'request': request})
 
         return Response(serializer.data)
 
